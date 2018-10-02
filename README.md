@@ -18,7 +18,7 @@ Slack do the heavy lifting.
 
 To install:
 ```
-pip install SlackMQ
+pip install slackmq
 ```
 
 ## Message Locking Anatomy
