@@ -8,6 +8,11 @@ SlackMQ is suited to high latency message queuing applications due to rate limit
 Scaling is limited to 16 "workers" per bot account. For a minimalist architecture,
 leverage the power of SlackMQ and a Slack bot becomes highly available out of the box.
 
+To install:
+```
+pip install slackmq
+```
+
 The Slack API allows reactions, pins and stars to be added to a post once per bot.
 For example, a bot cannot give a post a thumbs up twice. In the UI, if you try, it
 revokes the reaction. In the API, an exception is thrown.
@@ -22,11 +27,32 @@ To use SlackMQ, wrap the post acknowledgement around a bot action. Below is an e
 of how a chatbot using the slackbot library uses SlackMQ to pull from the "queue", 
 i.e, the channel.
 
-<script src="https://gist.github.com/meltaxa/bd359867cf804fe93ea87fabdc5e1c63.js"></script>
+```python
+# An example slackbot worker that is powered by SlackMQ.
+# Run this as part of a greater slackbot program on multiple devices.
+# Out of the box it is highly available.
 
-To install:
-```
-pip install slackmq
+from slackmq import slackmq
+from slackbot.bot import listen_to
+import socket
+
+API_TOKEN = 'YOUR-SLACK-BOT-API-TOKEN'
+
+@listen_to('^do something')
+def dosomething(message):
+    post = slackmq(API_TOKEN,
+                   message.body['channel'], 
+                   message.body['ts'])
+    
+    # Get a lock on the message. If there are other worker bots, the first to
+    # obtain the lock will continue.
+    if post.ack():
+        
+        # Do something
+        message.send('Bot device {} is doing something.'.format(socket.gethostname()))
+        
+        # Removes the visible pin (and hidden star) from the channel.
+        post.unack()
 ```
 
 # Implementation Examples
@@ -40,4 +66,4 @@ Remote Management, Continuous Delivery, Canary Deployments and Rolling Updates. 
 Troupe example, a Federation of Slack bots can self-update with zero downtime using the
 SlackMQ library. Watch The Travelling DevOps Troupe in action:
 
-[![The Travelling DevOps Troupe](http://img.youtube.com/vi/7TuYA2jt-Vc/0.jpg)](https://www.youtube.com/watch?v=7TuYA2jt-Vc "The Travelling DevOps Troupe)
+[![The Travelling DevOps Troupe](http://img.youtube.com/vi/7TuYA2jt-Vc/0.jpg)](https://www.youtube.com/watch?v=7TuYA2jt-Vc "The Travelling DevOps Troupe")
