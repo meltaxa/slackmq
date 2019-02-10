@@ -1,72 +1,77 @@
 # SlackMQ
 
-Enables a common Message Queue mechanism for "message locking" within Slack. 
-When a message is sent to a channel, a Slack bot can acknowledge the message 
-and “lock” it for processing. This keeps other worker bots from processing the 
+Slack can do the heavy lifting of a simple Message Queue. When a message is received,
+it is "locked" while being processed. This keeps other worker bots from processing the
 message simultaneously.
 
-SlackMQ leverages the Slack API method for pinning, reactions and starring of 
-messages, where only one is allowed per post per user (or bot) account. 
-
-A Slack worker bot can use the same API token to connect to Slack up to 16 
-times. This is a restriction imposed by Slack.
-
-SlackMQ is not a replacement for dedicated Message Brokers and Queue systems. It
-only does simple message locking and is suitable for managing low bandwidth
-tasks or applications. For those use cases, it's one less moving part and makes
-Slack do the heavy lifting.
+SlackMQ is suited to high latency message queuing applications due to rate limiting.
+Scaling is limited to 16 "workers" per bot account. For a minimalist architecture,
+leverage the power of SlackMQ and a Slack bot becomes highly available out of the box.
 
 To install:
 ```
 pip install slackmq
 ```
 
-## Message Locking Anatomy
+The Slack API allows reactions, pins and stars to be added to a post once per bot.
+For example, a bot cannot give a post a thumbs up twice. In the UI, if you try, it
+revokes the reaction. In the API, an exception is thrown.
 
-A star and pin action are both used to "lock" a message. 
+![SlackMQ workflow](docs/slackmq-workflow.png)
 
-The star is not seen in the Slack channel, as it is only visible by the user 
-creating the star.
+The Slack RTM API allows a bot to connect multiple times. With this account concurrency, 
+Slack can be made to behave like a basic Message Queuing system by using reactions,
+pins or stars to acknowledge a message.
 
-Pins and reactions are visible to everyone in the channel.
+To use SlackMQ, wrap the post acknowledgement around a bot action. Below is an example
+of how a slackclient bot uses SlackMQ to pull from the "queue", i.e, the channel.
 
-To avoid race conditions, where two or more bots simultaneously star the
-same message (the Slack API says it shouldn't but it can happen), a second 
-action (the star) is invoked. An optional third action (a reaction emoji) for 
-extra protection can also be invoked.
-
-## Example: The Slack Worker Bot
-
-For high availability and scalability reasons, multiple worker bots could be 
-deployed through out a network. Using the Slackbot python library to listen and 
-respond to certain Slack posts, all the bots will receive the message, but the 
-first to acknowledge the message will be able to process it. 
-
-```
+```python
+from slackclient import SlackClient
 from slackmq import slackmq
-from slackbot.bot import listen_to
 import socket
 
-API_TOKEN = 'YOUR-BOT-API-TOKEN'
+slack_token = "SLACK-API-TOKEN"
+sc = SlackClient(slack_token)
 
-@listen_to('hostname')
-def myhostname(message):
-    post = slackmq(API_TOKEN,
-                   message.body['channel'], 
-                   message.body['ts'])
-    if post.ack():
-        message.send('I am running on {}.'.format(socket.gethostname()))
-        # Removes the visible pin (and hidden star) from the channel.
-        post.unack()
+if sc.rtm_connect():
+    while True:
+        events = sc.rtm_read()
+        for event in events:
+            if (
+                'channel' in event and
+                'text' in event and
+                event.get('type') == 'message'
+            ):
+                channel = event['channel']
+                text = event['text']
+                if 'hi' in text.lower():
+                    post = slackmq(
+                               slack_token,
+                               channel,
+                               event['ts']
+                           )
+                    if post.ack():
+                        sc.api_call(
+                            'chat.postMessage',
+                            channel=channel,
+                            text="Hello from " + socket.gethostname(),
+                            as_user='true:'
+                        )
+                        post.unack()
+else:
+    print('Connection failed, invalid token?')
 ```
 
-## Example: Continuous Delivery with SlackMQ
+# Implementation Examples
 
-Watch Continuous Delivery with SlackMQ in action, deploying a home automation
-application across several hosts. From Continuous Integration to an automated
-canary deployment. Once approved, a rolling deployment occurs with zero 
-downtime.
+Troupe, which is a group of Slack bots working together to control and operate a smart 
+home implements SlackMQ. 
+- See Troupe's source code for an insight into SlackMQ usage: https://github.com/meltaxa/troupe.
 
-Video has no audio:
+Another implementation of SlackMQ is to perform DevOps manoeuvres, such as
+Remote Management, Continuous Delivery, Canary Deployments and Rolling Updates. In the
+Troupe example, a Federation of Slack bots can self-update with zero downtime using the
+SlackMQ library. Watch The Travelling DevOps Troupe in action:
 
-[![Continuous Delivery with SlackMQ](http://img.youtube.com/vi/YW6IdsvdxXI/0.jpg)](http://www.youtube.com/watch?v=YW6IdsvdxXI "Continuous Delivery with SlackMQ")
+[![The Travelling DevOps Troupe](http://img.youtube.com/vi/7TuYA2jt-Vc/0.jpg)](https://www.youtube.com/watch?v=7TuYA2jt-Vc "The Travelling DevOps Troupe")
