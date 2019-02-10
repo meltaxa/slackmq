@@ -24,35 +24,43 @@ Slack can be made to behave like a basic Message Queuing system by using reactio
 pins or stars to acknowledge a message.
 
 To use SlackMQ, wrap the post acknowledgement around a bot action. Below is an example
-of how a chatbot using the slackbot library uses SlackMQ to pull from the "queue", 
-i.e, the channel.
+of how a slackclient bot uses SlackMQ to pull from the "queue", i.e, the channel.
 
 ```python
-# An example slackbot worker that is powered by SlackMQ.
-# Run this as part of a greater slackbot program on multiple devices.
-# Out of the box it is highly available.
-
+from slackclient import SlackClient
 from slackmq import slackmq
-from slackbot.bot import listen_to
 import socket
 
-API_TOKEN = 'YOUR-SLACK-BOT-API-TOKEN'
+slack_token = "SLACK-API-TOKEN"
+sc = SlackClient(slack_token)
 
-@listen_to('^do something')
-def dosomething(message):
-    post = slackmq(API_TOKEN,
-                   message.body['channel'], 
-                   message.body['ts'])
-    
-    # Get a lock on the message. If there are other worker bots, the first to
-    # obtain the lock will continue.
-    if post.ack():
-        
-        # Do something
-        message.send('Bot device {} is doing something.'.format(socket.gethostname()))
-        
-        # Removes the visible pin (and hidden star) from the channel.
-        post.unack()
+if sc.rtm_connect():
+    while True:
+        events = sc.rtm_read()
+        for event in events:
+            if (
+                'channel' in event and
+                'text' in event and
+                event.get('type') == 'message'
+            ):
+                channel = event['channel']
+                text = event['text']
+                if 'hi' in text.lower():
+                    post = slackmq(
+                               slack_token,
+                               channel,
+                               event['ts']
+                           )
+                    if post.ack():
+                        sc.api_call(
+                            'chat.postMessage',
+                            channel=channel,
+                            text="Hello from " + socket.gethostname(),
+                            as_user='true:'
+                        )
+                        post.unack()
+else:
+    print('Connection failed, invalid token?')
 ```
 
 # Implementation Examples
