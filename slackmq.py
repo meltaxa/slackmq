@@ -8,33 +8,36 @@ class slackmq(object):
         self.channel = channel
         self.timestamp = timestamp
 
-    def ack(self, emoji=None):
+    def ack(self, emoji=None, stars=None):
         try:
             slack = Slacker(self.api_token)
-            slack.stars.add(channel=self.channel,
-                            timestamp=self.timestamp)
+            slack.pins.add(channel=self.channel,
+                           timestamp=self.timestamp)
+            if stars is not None:
+                slack.stars.add(channel=self.channel,
+                                timestamp=self.timestamp)
             if emoji is not None:
                 slack.reactions.add(emoji,
                                     channel=self.channel,
                                     timestamp=self.timestamp)
-            slack.pins.add(channel=self.channel,
-                           timestamp=self.timestamp)
-            return True
         except Exception:
             return False
+        return True
 
-    def unack(self, emoji=None):
+    def unack(self, emoji=None, stars=None):
         try:
+            sleep(3)
             slack = Slacker(self.api_token)
             slack.pins.remove(channel=self.channel,
                               timestamp=self.timestamp)
-            sleep(3)
             if emoji is not None:
+                sleep(3)
                 slack.reactions.remove(emoji,
                                        channel=self.channel,
                                        timestamp=self.timestamp)
-            sleep(5)
-            slack.stars.remove(channel=self.channel,
-                               timestamp=self.timestamp)
+            if stars is not None:
+                sleep(3)
+                slack.stars.remove(channel=self.channel,
+                                   timestamp=self.timestamp)
         except Exception:
             return False
