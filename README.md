@@ -25,7 +25,7 @@ Slack can be made to behave like a basic Message Queuing system by using pins to
 acknowledge (lock) and unacknowledge a message, as demonstrated in the diagram above. 
 Using pins is ideal as this allows "unlimited" bot workers. The Slack RTM API also 
 allows a bot to connect multiple times. With this account concurrency, this method 
-limits the bot to 16 concurrent workers³. You may find using a combination of pins, 
+limits the bot to 16 concurrent workers. You may find using a combination of pins, 
 stars and reactions more reliable for low latency messages.
 
 To use SlackMQ, wrap the post acknowledgement around a bot action. Below is an example
