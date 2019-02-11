@@ -5,62 +5,48 @@ it is "locked" while being processed. This keeps other worker bots from processi
 message simultaneously.
 
 SlackMQ is suited to high latency message queuing applications due to rate limiting.
-Scaling is limited to 16 "workers" per bot account. For a minimalist architecture,
-leverage the power of SlackMQ and a Slack bot becomes highly available out of the box.
+For a minimalist architecture, leverage the power of SlackMQ and a Slack bot becomes 
+highly available out of the box.
 
 To install:
 ```
 pip install slackmq
 ```
 
-The Slack API allows reactions, pins and stars to be added to a post once per bot.
-For example, a bot cannot give a post a thumbs up twice. In the UI, if you try, it
+The Slack API allows pins to be added once per message per channel. Also 
+reactions and stars can be added to a message once per bot. 
+For example, a person or bot cannot pin a message that has already been pinned.
+Also a user or bot cannot give a post a thumbs up twice. In the UI, if you try, it
 revokes the reaction. In the API, an exception is thrown.
 
 ![SlackMQ workflow](docs/slackmq-workflow.png)
 
-The Slack RTM API allows a bot to connect multiple times. With this account concurrency, 
-Slack can be made to behave like a basic Message Queuing system by using reactions,
-pins or stars to acknowledge a message.
+Slack can be made to behave like a basic Message Queuing system by using pins to
+acknowledge (lock) and unacknowledge a message. Using pins is ideal as this allows
+"unlimited" bot workers. However, the Slack RTM API allows a bot to connect multiple
+times. With this account concurrency, this method limits the bot to 16 concurrent 
+"workers". You may find using a combination of pins, stars and reactions may be more
+reliable for low latency messages.
 
 To use SlackMQ, wrap the post acknowledgement around a bot action. Below is an example
 of how a slackclient bot uses SlackMQ to pull from the "queue", i.e, the channel.
 
 ```python
-from slackclient import SlackClient
 from slackmq import slackmq
+from slackbot.bot import listen_to
 import socket
 
-slack_token = "SLACK-API-TOKEN"
-sc = SlackClient(slack_token)
+API_TOKEN = 'SLACK-BOT-API-TOKEN'
 
-if sc.rtm_connect():
-    while True:
-        events = sc.rtm_read()
-        for event in events:
-            if (
-                'channel' in event and
-                'text' in event and
-                event.get('type') == 'message'
-            ):
-                channel = event['channel']
-                text = event['text']
-                if 'hi' in text.lower():
-                    post = slackmq(
-                               slack_token,
-                               channel,
-                               event['ts']
-                           )
-                    if post.ack():
-                        sc.api_call(
-                            'chat.postMessage',
-                            channel=channel,
-                            text="Hello from " + socket.gethostname(),
-                            as_user='true:'
-                        )
-                        post.unack()
-else:
-    print('Connection failed, invalid token?')
+
+@listen_to('hello')
+def helloworld(message):
+    post = slackmq(API_TOKEN,
+                   message.body['channel'], 
+                   message.body['ts'])
+    if post.ack():
+        message.send('Hello from {}.'.format(socket.gethostname()))
+        post.unack()
 ```
 
 # Implementation Examples
