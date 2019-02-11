@@ -13,23 +13,24 @@ To install:
 pip install slackmq
 ```
 
-The Slack API allows pins to be added once per message per channel. Also 
-reactions and stars can be added to a message once per bot. 
-For example, a person or bot cannot pin a message that has already been pinned.
-Also a user or bot cannot give a post a thumbs up twice. In the UI, if you try, it
-revokes the reaction. In the API, an exception is thrown.
+The Slack API allows pins to be added once per message per channel. Also, reactions
+and stars can be added to a message once per bot. For example, a person or bot cannot
+pin a message that has already been pinned. A user or bot cannot give a post a thumbs 
+up twice. In the UI, if you try, the action is revoked. In the API, an exception is 
+thrown.
 
 ![SlackMQ workflow](docs/slackmq-workflow.png)
 
-Slack can be made to behave like a basic Message Queuing system by using pins to
-acknowledge (lock) and unacknowledge a message. Using pins is ideal as this allows
-"unlimited" bot workers. However, the Slack RTM API allows a bot to connect multiple
-times. With this account concurrency, this method limits the bot to 16 concurrent 
-"workers". You may find using a combination of pins, stars and reactions may be more
-reliable for low latency messages.
+Slack can be made to behave like a basic Message Queuing system by using pins to 
+acknowledge (lock) and unacknowledge a message, as demonstrated in the diagram above. 
+Using pins is ideal as this allows "unlimited" bot workers. The Slack RTM API also 
+allows a bot to connect multiple times. With this account concurrency, this method 
+limits the bot to 16 concurrent workers³. You may find using a combination of pins, 
+stars and reactions more reliable for low latency messages.
 
 To use SlackMQ, wrap the post acknowledgement around a bot action. Below is an example
-of how a slackclient bot uses SlackMQ to pull from the "queue", i.e, the channel.
+of how a bot (using the slackbot library) uses SlackMQ to pull from the "queue", i.e, 
+the channel.
 
 ```python
 from slackmq import slackmq
