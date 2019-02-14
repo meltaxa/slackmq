@@ -19,7 +19,7 @@ pin a message that has already been pinned. A user or bot cannot give a post a t
 up twice. In the UI, if you try, the action is revoked. In the API, an exception is 
 thrown.
 
-![SlackMQ workflow](docs/slackmq-workflow.png)
+![SlackMQ workflow](https://github.com/meltaxa/slackmq/blob/master/docs/slackmq-workflow.png?raw=true)
 
 Slack can be made to behave like a basic Message Queuing system by using pins to 
 acknowledge (lock) and unacknowledge a message, as demonstrated in the diagram above. 

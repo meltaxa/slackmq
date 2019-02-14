@@ -24,12 +24,14 @@ class slackmq(object):
             return False
         return True
 
-    def unack(self, emoji=None, stars=None):
+    def unack(self, emoji=None, stars=None, ts=None):
         try:
+            if ts is None:
+                ts = self.timestamp
             sleep(3)
             slack = Slacker(self.api_token)
             slack.pins.remove(channel=self.channel,
-                              timestamp=self.timestamp)
+                              timestamp=ts)
             if emoji is not None:
                 sleep(3)
                 slack.reactions.remove(emoji,
@@ -39,5 +41,12 @@ class slackmq(object):
                 sleep(3)
                 slack.stars.remove(channel=self.channel,
                                    timestamp=self.timestamp)
-        except Exception:
+        except Exception as e:
+            print(e)
             return False
+        return True
+
+    def pinlist(self):
+        slack = Slacker(self.api_token)
+        response = slack.pins.list(channel=self.channel)
+        return response
